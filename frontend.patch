@@ -38,3 +38,26 @@ index 0c715854..422add5c 100644
 -VITE_APP_DISABLE_TRACKING=
 +# VITE_APP_DISABLE_TRACKING=
 +VITE_APP_DISABLE_TRACKING=yes
+diff --git a/packages/excalidraw/constants.ts b/packages/excalidraw/constants.ts
+index 1234abcd..5678efgh 100644
+--- a/packages/excalidraw/constants.ts
++++ b/packages/excalidraw/constants.ts
+@@ -261,4 +261,4 @@ export const LIBRARY_SIDEBAR_WIDTH = parseInt(
+   getComputedStyle(document.documentElement).getPropertyValue(
+     "--library-sidebar-width",
+   ),
+ );
+-export const MAX_ALLOWED_FILE_BYTES = 2 * 1024 * 1024;
++export const MAX_ALLOWED_FILE_BYTES = 10 * 1024 * 1024;
+diff --git a/excalidraw-app/app_constants.ts b/excalidraw-app/app_constants.ts
+index abcd1234..efgh5678 100644
+--- a/excalidraw-app/app_constants.ts
++++ b/excalidraw-app/app_constants.ts
+@@ -8,7 +8,7 @@ export const STORAGE_KEYS = {
+   LOCAL_STORAGE_LIBRARY: "excalidraw-library",
+   VERSION_DATA_STATE: "version-dataState",
+ } as const;
+-export const FILE_UPLOAD_MAX_BYTES = 3 * 1024 * 1024; // 3 MiB
++export const FILE_UPLOAD_MAX_BYTES = 10 * 1024 * 1024; // 10 MiB
+ // 1 year (https://stackoverflow.com/a/25201898/927631)
+ export const FILE_CACHE_MAX_AGE_SEC = 31536000;

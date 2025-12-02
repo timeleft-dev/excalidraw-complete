@@ -1,12 +1,17 @@
 package firebase
 
 import (
+	"database/sql"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type (
@@ -49,7 +54,35 @@ type (
 	}
 )
 
-var savedItems = make(map[string]interface{})
+var (
+	db   *sql.DB
+	once sync.Once
+)
+
+func getDB() *sql.DB {
+	once.Do(func() {
+		var err error
+		dataSourceName := os.Getenv("DATA_SOURCE_NAME")
+		if dataSourceName == "" {
+			dataSourceName = ":memory:"
+		}
+		db, err = sql.Open("sqlite3", dataSourceName)
+		if err != nil {
+			panic(fmt.Sprintf("failed to open database: %v", err))
+		}
+		// Create table for Firebase documents
+		_, err = db.Exec(`CREATE TABLE IF NOT EXISTS firebase_documents (
+			name TEXT PRIMARY KEY,
+			fields TEXT NOT NULL,
+			create_time TEXT NOT NULL,
+			update_time TEXT NOT NULL
+		)`)
+		if err != nil {
+			panic(fmt.Sprintf("failed to create firebase_documents table: %v", err))
+		}
+	})
+	return db
+}
 
 func (body *BatchGetRequest) Bind(r *http.Request) (err error) {
 	return nil
@@ -72,12 +105,35 @@ func HandleBatchCommit() http.HandlerFunc {
 			return
 		}
 
-		savedItems[data.Writes[0].Update.Name] = data.Writes[0].Update.Fields
+		// Serialize fields to JSON
+		fieldsJSON, err := json.Marshal(data.Writes[0].Update.Fields)
+		if err != nil {
+			fmt.Printf("failed to marshal fields: %v\n", err)
+			render.Status(r, http.StatusInternalServerError)
+			return
+		}
+
+		now := time.Now().Format(time.RFC3339)
+		documentName := data.Writes[0].Update.Name
+
+		// Insert or update the document
+		db := getDB()
+		_, err = db.Exec(`INSERT INTO firebase_documents (name, fields, create_time, update_time)
+			VALUES (?, ?, ?, ?)
+			ON CONFLICT(name) DO UPDATE SET
+				fields = excluded.fields,
+				update_time = excluded.update_time`,
+			documentName, string(fieldsJSON), now, now)
+		if err != nil {
+			fmt.Printf("failed to save document: %v\n", err)
+			render.Status(r, http.StatusInternalServerError)
+			return
+		}
 
 		render.JSON(w, r, BatchCommitResponse{
-			CommitTime: time.Now().Format(time.RFC3339),
+			CommitTime: now,
 			WriteResults: []WriteResult{
-				WriteResult{UpdateTime: time.Now().Format(time.RFC3339)},
+				WriteResult{UpdateTime: now},
 			},
 		})
 		render.Status(r, http.StatusOK)
@@ -103,9 +159,14 @@ func HandleBatchGet() http.HandlerFunc {
 		key := data.Documents[0]
 		fmt.Printf("Got key %v \n", key)
 
-		fields, ok := savedItems[key]
+		// Query the database
+		db := getDB()
+		var fieldsJSON string
+		var createTime, updateTime string
+		err := db.QueryRow(`SELECT fields, create_time, update_time FROM firebase_documents WHERE name = ?`, key).
+			Scan(&fieldsJSON, &createTime, &updateTime)
 
-		if !ok {
+		if err == sql.ErrNoRows {
 			fmt.Println("missing key")
 			render.JSON(w, r, []BatchGetEmptyResponse{BatchGetEmptyResponse{
 				Missing:  key,
@@ -113,14 +174,27 @@ func HandleBatchGet() http.HandlerFunc {
 			}})
 			render.Status(r, http.StatusOK)
 			return
+		} else if err != nil {
+			fmt.Printf("database error: %v\n", err)
+			render.Status(r, http.StatusInternalServerError)
+			return
 		}
+
+		// Deserialize fields from JSON
+		var fields interface{}
+		if err := json.Unmarshal([]byte(fieldsJSON), &fields); err != nil {
+			fmt.Printf("failed to unmarshal fields: %v\n", err)
+			render.Status(r, http.StatusInternalServerError)
+			return
+		}
+
 		fmt.Println("existing key")
 		render.JSON(w, r, []BatchGetExistsResponse{BatchGetExistsResponse{
 			Found: FoundInfoResponse{
 				Name:       key,
 				Fields:     fields,
-				CreateTime: time.Now().Format(time.RFC3339),
-				UpdateTime: time.Now().Format(time.RFC3339),
+				CreateTime: createTime,
+				UpdateTime: updateTime,
 			},
 			ReadTime: time.Now().Format(time.RFC3339),
 		}})
