@@ -96,11 +96,13 @@ func handleUI() http.Handler {
 		// This allows the Firebase SDK to connect to our self-hosted server
 		modifiedContent := strings.ReplaceAll(string(fileContent), "firestore.googleapis.com", hostname)
 		
-		// Replace localhost:3002 and oss-collab.excalidraw.com with the actual domain (for WebSocket URL)
-		// This allows Socket.IO to connect to our self-hosted server
+		// Replace localhost:3002, oss-collab.excalidraw.com, and json.excalidraw.com with the actual domain
+		// This allows Socket.IO and API endpoints to connect to our self-hosted server
 		modifiedContent = strings.ReplaceAll(modifiedContent, "http://localhost:3002", fullURL)
 		modifiedContent = strings.ReplaceAll(modifiedContent, "https://oss-collab.excalidraw.com", fullURL)
+		modifiedContent = strings.ReplaceAll(modifiedContent, "https://json.excalidraw.com", fullURL)
 		modifiedContent = strings.ReplaceAll(modifiedContent, "wss://oss-collab.excalidraw.com", "wss://"+hostname)
+		modifiedContent = strings.ReplaceAll(modifiedContent, "json.excalidraw.com", hostname)
 		modifiedContent = strings.ReplaceAll(modifiedContent, "oss-collab.excalidraw.com", hostname)
 		modifiedContent = strings.ReplaceAll(modifiedContent, "localhost:3002", hostname)
 		
