@@ -172,7 +172,32 @@ diff --git a/excalidraw-app/App.tsx b/excalidraw-app/App.tsx
 +          onNewFile={newWorkspaceFile}
 +          workspaceFileName={workspaceFileName}
          />
-@@ -883,2 +981,10 @@ import { WorkspaceDialog } from "./components/WorkspaceDialog";
+@@ -772,20 +870,13 @@ import { WorkspaceDialog } from "./components/WorkspaceDialog";
+         <OverwriteConfirmDialog>
+           <OverwriteConfirmDialog.Actions.ExportToImage />
+           <OverwriteConfirmDialog.Actions.SaveToDisk />
+           {excalidrawAPI && (
+             <OverwriteConfirmDialog.Action
+-              title={t("overwriteConfirm.action.excalidrawPlus.title")}
+-              actionLabel={t("overwriteConfirm.action.excalidrawPlus.button")}
+-              onClick={() => {
+-                exportToExcalidrawPlus(
+-                  excalidrawAPI.getSceneElements(),
+-                  excalidrawAPI.getAppState(),
+-                  excalidrawAPI.getFiles(),
+-                  excalidrawAPI.getName(),
+-                );
+-              }}
++              title="Save to Workspace"
++              actionLabel={workspaceFileName ? `Save "${workspaceFileName}"` : "Save to Workspace\u2026"}
++              onClick={saveToWorkspace}
+             >
+-              {t("overwriteConfirm.action.excalidrawPlus.description")}
++              Save the scene to your team workspace so you can reload it later.
+             </OverwriteConfirmDialog.Action>
+           )}
+         </OverwriteConfirmDialog>
+@@ -883,2 +974,10 @@ import { WorkspaceDialog } from "./components/WorkspaceDialog";
 
 +        {showWorkspaceDialog && (
 +          <WorkspaceDialog
