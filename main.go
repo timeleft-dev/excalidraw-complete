@@ -6,6 +6,7 @@ import (
 	"excalidraw-complete/core"
 	"excalidraw-complete/handlers/api/documents"
 	"excalidraw-complete/handlers/api/firebase"
+	"excalidraw-complete/handlers/api/workspace"
 	"excalidraw-complete/stores"
 	"flag"
 	"fmt"
@@ -147,7 +148,7 @@ func handleUI() http.Handler {
 	})
 }
 
-func setupRouter(documentStore core.DocumentStore) *chi.Mux {
+func setupRouter(documentStore core.DocumentStore, workspaceStore core.WorkspaceStore) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 
@@ -170,6 +171,17 @@ func setupRouter(documentStore core.DocumentStore) *chi.Mux {
 			r.Get("/", documents.HandleGet(documentStore))
 		})
 	})
+
+	r.Route("/api/workspace/files", func(r chi.Router) {
+		r.Get("/", workspace.HandleList(workspaceStore))
+		r.Post("/", workspace.HandleCreate(workspaceStore))
+		r.Route("/{id}", func(r chi.Router) {
+			r.Get("/", workspace.HandleGet(workspaceStore))
+			r.Put("/", workspace.HandleUpdate(workspaceStore))
+			r.Delete("/", workspace.HandleDelete(workspaceStore))
+		})
+	})
+
 	return r
 }
 func setupSocketIO() *socketio.Server {
@@ -299,8 +311,9 @@ func main() {
 	}
 	logrus.SetLevel(level)
 
-	documentStore := stores.GetStore() // Make sure this is well-defined in your "stores" package
-	r := setupRouter(documentStore)
+	documentStore := stores.GetStore()
+	workspaceStore := stores.GetWorkspaceStore()
+	r := setupRouter(documentStore, workspaceStore)
 	ioo := setupSocketIO()
 	r.Handle("/socket.io/", ioo.ServeHandler(nil))
 	r.Get("/ping", func(w http.ResponseWriter, _ *http.Request) {
